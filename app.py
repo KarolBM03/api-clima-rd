@@ -1,15 +1,15 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 import requests
 import concurrent.futures
 import os
 
 app = Flask(__name__)
 
-# 🔑 Tu API key desde las variables de entorno de Render
-API_KEY = os.getenv("OPENWEATHER_API_KEY")
-BASE_URL = "https://api.openweathermap.org/data/2.5/weather"
+# 🔑 API Key desde variables de entorno (Render)
+API_KEY = os.getenv("WEATHER_API_KEY")
+BASE_URL = "http://api.weatherapi.com/v1/current.json"
 
-# 🗺️ Provincias de República Dominicana
+# 🗺 Provincias de República Dominicana
 PROVINCIAS_RD = [
     "Santo Domingo", "Distrito Nacional", "Santiago", "La Vega", "San Cristobal",
     "San Pedro de Macoris", "La Romana", "San Juan", "Puerto Plata", "Duarte",
@@ -22,28 +22,27 @@ PROVINCIAS_RD = [
 # 🌡️ Función para obtener el clima de una provincia
 def obtener_clima(ciudad):
     params = {
+        'key': API_KEY,
         'q': f"{ciudad},DO",
-        'appid': API_KEY,
-        'units': 'metric',
         'lang': 'es'
     }
     try:
-        r = requests.get(BASE_URL, params=params)
+        r = requests.get(BASE_URL, params=params, timeout=10)
         if r.status_code == 200:
             data = r.json()
             return {
                 "provincia": ciudad,
-                "temperatura": data["main"]["temp"],
-                "descripcion": data["weather"][0]["description"],
-                "humedad": data["main"]["humidity"],
-                "viento": data["wind"]["speed"]
+                "temperatura": data["current"]["temp_c"],
+                "descripcion": data["current"]["condition"]["text"],
+                "humedad": data["current"]["humidity"],
+                "viento": data["current"]["wind_kph"]
             }
         else:
             return {"provincia": ciudad, "error": f"No disponible ({r.status_code})"}
     except Exception as e:
         return {"provincia": ciudad, "error": str(e)}
 
-# 🧠 Ruta raíz: mostrará TODAS las provincias directamente
+# 🧠 Ruta raíz: mostrará TODAS las provincias
 @app.route('/', methods=['GET'])
 def clima_principal():
     resultados = []
@@ -61,11 +60,11 @@ def clima_principal():
 # 🌤 Endpoint individual (por ciudad)
 @app.route('/clima', methods=['GET'])
 def clima_individual():
-    from flask import request
     ciudad = request.args.get("ciudad")
     if not ciudad:
-        return jsonify({"error": "Debes especificar una ciudad (?ciudad=)"})
+        return jsonify({"error": "Debes especificar una ciudad (?ciudad=)"}), 400
     return jsonify(obtener_clima(ciudad))
 
+# 🏁 Run
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
