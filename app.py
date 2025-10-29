@@ -5,12 +5,11 @@ import os
 
 app = Flask(__name__)
 
-# Obtener la API key desde el archivo .env
+# 🔑 Tu API key desde las variables de entorno de Render
 API_KEY = os.getenv("OPENWEATHER_API_KEY")
-
 BASE_URL = "https://api.openweathermap.org/data/2.5/weather"
 
-# 🗺️ Lista de las 32 provincias de República Dominicana (con su nombre más reconocido por OpenWeather)
+# 🗺️ Provincias de República Dominicana
 PROVINCIAS_RD = [
     "Santo Domingo", "Distrito Nacional", "Santiago", "La Vega", "San Cristobal",
     "San Pedro de Macoris", "La Romana", "San Juan", "Puerto Plata", "Duarte",
@@ -20,7 +19,7 @@ PROVINCIAS_RD = [
     "Dajabón", "Monte Cristi", "Independencia", "Pedernales", "Valverde", "Santiago Rodríguez"
 ]
 
-# 🔍 Función para obtener el clima de una provincia
+# 🌡️ Función para obtener el clima de una provincia
 def obtener_clima(ciudad):
     params = {
         'q': f"{ciudad},DO",
@@ -44,12 +43,10 @@ def obtener_clima(ciudad):
     except Exception as e:
         return {"provincia": ciudad, "error": str(e)}
 
-# 🧠 Endpoint para obtener todas las provincias
-@app.route('/clima_rd', methods=['GET'])
-def clima_rd():
+# 🧠 Ruta raíz: mostrará TODAS las provincias directamente
+@app.route('/', methods=['GET'])
+def clima_principal():
     resultados = []
-
-    # Ejecutar múltiples consultas en paralelo (más rápido)
     with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
         futures = [executor.submit(obtener_clima, p) for p in PROVINCIAS_RD]
         for future in concurrent.futures.as_completed(futures):
@@ -61,7 +58,7 @@ def clima_rd():
         "data": resultados
     })
 
-# 🌤 Endpoint individual
+# 🌤 Endpoint individual (por ciudad)
 @app.route('/clima', methods=['GET'])
 def clima_individual():
     from flask import request
@@ -71,4 +68,4 @@ def clima_individual():
     return jsonify(obtener_clima(ciudad))
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
